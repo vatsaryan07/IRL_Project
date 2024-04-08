@@ -210,7 +210,7 @@ def deep_maxent_irl(feat_map, P_a, gamma, trajs, lr, n_iters):
     
     # reward_net_new = 
     # training
-    for i in range(5):
+    for i in range(n_iters):
         print('iteration: {}/{}'.format(i, n_iters))
         ##### INSERT CODE HERE
         # Training goes here
@@ -219,7 +219,7 @@ def deep_maxent_irl(feat_map, P_a, gamma, trajs, lr, n_iters):
         rew_new = reward_net_new.forward(torch.Tensor(feat_map))
         # print(rew_new.shape)
         # 2) Compute policy w.r.t. the reward function (HINT: use value_iteration func)
-        val,pol = value_iteration(P_a,rew_new.detach().numpy(),gamma,error = 0.1,deterministic=True)
+        val,pol = value_iteration(P_a,rew,gamma,error = 0.1,deterministic=True)
         # 3) Compute state visitation frequencies
         stvisit = compute_state_visit_freq(P_a,gamma,trajs,pol,deterministic=True)
         # 4) Compute Final layer Gradient (HINT: Eq. 11 of Wulfmeier et al.)
@@ -272,11 +272,28 @@ def deep_maxent_irl(feat_map, P_a, gamma, trajs, lr, n_iters):
     feat_map_torch = torch.Tensor(feat_map)
     explainer = shap.DeepExplainer(reward_net_new,feat_map_torch)
     torch.save(reward_net_new,'yeet2')
-    values = explainer.shap_values(feat_map_torch[0].reshape(1,-1))
-    print(values.shape)
     
+    shap_vals = explainer.shap_values(torch.Tensor(feat_map))
+    shap_vals = shap_vals.squeeze()
+    
+    feat_1 = shap_vals[:,:16]
+    # print(feat_1.shape)
+    feat_1 = np.mean(feat_1,axis = 1,keepdims= True)
+    
+    feat_2 = shap_vals[:,16:21]
+    # print(feat_2.shape)
+    feat_2 = np.mean(feat_2,axis = 1,keepdims= True)
+    
+    feat_3 = shap_vals[:,21].reshape(-1,1)
+    feat_4 = shap_vals[:,22].reshape(-1,1)
+    # print(feat_3.shape)
+    # print(feat_4.shape)
+    final_shaps = np.concatenate([feat_1,feat_2,feat_3,feat_4],axis = 1)
+    
+    shap.plots.violin(final_shaps,feature_names=['Agent Loc','Monster Loc','Check Hole','Distance to Monster'],plot_type='violin',color_bar = True)
     with open('feat_map.pkl', 'wb') as f:
         pickle.dump(feat_map, f)
-    shap.summary_plot(values,feat_map_torch[0].reshape(1,-1))
+    
+    # shap.summary_plot(values,feat_map_torch[0].reshape(1,-1))
     
     return normalize(rewards)
