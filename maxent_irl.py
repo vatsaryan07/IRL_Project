@@ -6,6 +6,8 @@ from model import *
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 import shap
+import lime
+from matplotlib import pyplot as plt
 
 def normalize(vals):
     """
@@ -148,6 +150,9 @@ def maxent_irl(feat_map, P_a, gamma, trajs, lr, n_iters):
     return normalize(rewards)
 
 
+
+
+
 def deep_maxent_irl(feat_map, P_a, gamma, trajs, lr, n_iters):
     """
         Maximum Entropy Deep Inverse Reinforcement Learning (Deep Maxent IRL)
@@ -211,6 +216,7 @@ def deep_maxent_irl(feat_map, P_a, gamma, trajs, lr, n_iters):
     # reward_net_new = 
     # training
     for i in range(n_iters):
+    # for i in range(1):
         print('iteration: {}/{}'.format(i, n_iters))
         ##### INSERT CODE HERE
         # Training goes here
@@ -272,10 +278,10 @@ def deep_maxent_irl(feat_map, P_a, gamma, trajs, lr, n_iters):
     feat_map_torch = torch.Tensor(feat_map)
     explainer = shap.DeepExplainer(reward_net_new,feat_map_torch)
     torch.save(reward_net_new,'yeet2')
-    
-    shap_vals = explainer.shap_values(torch.Tensor(feat_map))
+    # print(feat_map.shape)
+    shap_vals = explainer.shap_values(torch.Tensor(feat_map),check_additivity=False)
     shap_vals = shap_vals.squeeze()
-    
+    # print(shap_vals.shape)mode =
     feat_1 = shap_vals[:,:16]
     # print(feat_1.shape)
     feat_1 = np.mean(feat_1,axis = 1,keepdims= True)
@@ -286,14 +292,104 @@ def deep_maxent_irl(feat_map, P_a, gamma, trajs, lr, n_iters):
     
     feat_3 = shap_vals[:,21].reshape(-1,1)
     feat_4 = shap_vals[:,22].reshape(-1,1)
+    feat_5 = shap_vals[:,23].reshape(-1,1)
     # print(feat_3.shape)
     # print(feat_4.shape)
-    final_shaps = np.concatenate([feat_1,feat_2,feat_3,feat_4],axis = 1)
+    final_shaps = np.concatenate([feat_1,feat_2,feat_3,feat_4,feat_5],axis = 1)
     
-    shap.plots.violin(final_shaps,feature_names=['Agent Loc','Monster Loc','Check Hole','Distance to Monster'],plot_type='violin',color_bar = True)
+    fig = shap.plots.violin(final_shaps,feature_names=['Agent Loc','Monster Loc','Check Hole','Dist to Monster','Dist to Goal'],plot_type='violin',color_bar = True,show = False)
+    
+    
+    
+    
+    # i = 25
+    # exp = explainer.explain_instance(test[i], rf.predict, num_features=5)
+    classes = ['Agent in location '+str(i) for i in range(0,16)]
+    mclasses = ['Monster in location '+str(i) for i in [2, 6, 8, 9, 10]]
+    tclasses = ['Check Hole','Dist to Monster','Dist to Goal']
+    
+    mclasses.extend(tclasses)
+    classes.extend(mclasses)
+    
+    def convert_feat(feat_map):
+        # feat_map - (N, 24)
+        
+        monster_locs = [2, 6, 8, 9, 10]
+        N = feat_map.shape[0]
+        
+        feat_1 = np.argmax(feat_map[:, :16], axis=1).reshape((N, 1))
+        
+        feat_2 = np.argmax(feat_map[:, 16:21], axis=1).reshape((N, 1))
+        feat_2 = np.array([monster_locs[idx] for idx in feat_2.flatten()]).reshape((N, 1))
+        
+        feat_3 = feat_map[:, 21].reshape((N, 1))
+        feat_4 = feat_map[:, 22].reshape((N, 1))
+        feat_5 = feat_map[:, 23].reshape((N, 1))
+        
+        return np.concatenate([feat_1, feat_2, feat_3, feat_4, feat_5], axis=1)
+    
+    def predict(feats):
+        monster_locs = [2, 6, 8, 9, 10]
+        reward_net_new.eval()
+        feat_map = np.zeros((feats.shape[0],24))
+        # print(feats)
+        # feat_map_vect[:,]
+        # print(feats.shape)
+        for i,feat in enumerate(feats):
+            # print(feat)
+            feat_map[i,int(feat[0])] = 1
+            monster = min([2, 6, 8, 9, 10], key=lambda x: abs(x - feat[1]))
+            feat_map[i,16 + monster_locs.index(monster)] = 1
+            
+            feat_map[i,21:] = feat[2:]
+        # return feat_map
+        logits = reward_net_new.forward(torch.Tensor(feat_map))
+        return normalize(logits.detach().numpy())
+
+
+        
+    # def convert_feat(feat_map):
+    #     # feat_map - (24)
+        
+    #     monster_locs = [2, 6, 8, 9, 10]
+    #     # print(feat_map.shape)
+    #     feat_1 = feat_map[:16]
+    #     feat_1 = np.array([np.argmax(feat_1)])
+    #     # print
+        
+    #     feat_2 = feat_map[16:21]
+    #     feat_2 = np.array([monster_locs[np.argmax(feat_2)]])
+    #     # print(feat_2.shape)
+        
+    #     # print("Monster idx",np.where(feat_2 == monster_locs)[0])
+    #     feat_3 = np.array([feat_map[21]])
+    #     feat_4 = np.array([feat_map[22]])
+    #     feat_5 = np.array([feat_map[23]])
+        
+        
+    #     return np.concatenate([feat_1,feat_2,feat_3,feat_4,feat_5])
+    
+    converted_feat_map = convert_feat(feat_map)
+    # print(np.array_equal(predict(converted),feat_map))
+    # print("Shapecsag ",converted.shape)
+    lexp = lime.lime_tabular.LimeTabularExplainer(converted_feat_map,mode = 'regression',feature_names=  ['Agent Loc','Monster Loc','Check Hole','Dist to Monster','Dist to Goal'])
+    
+    exp = lexp.explain_instance(converted_feat_map[1], predict, num_features = 5)
+    # print(converted_feat_map[56].reshape(-1,1))
+    # print(predict(converted_feat_map[-1].reshape(1,-1)))
+    # print(feat_map[-1].shape)
+    # print(exp.as_map())
+    with open('explainer.pkl','wb') as f:
+        pickle.dump(exp,f)
+    
+    # plt.save
+    fig = exp.save_to_file('lime_figure.html')
+    plt.savefig('shapley.png',bbox_inches='tight')
+    fng = exp.as_pyplot_figure()
+    plt.savefig('lime.png',bbox_inches = 'tight')
     with open('feat_map.pkl', 'wb') as f:
         pickle.dump(feat_map, f)
-    
+    # print(normalize(rewards))
     # shap.summary_plot(values,feat_map_torch[0].reshape(1,-1))
-    
+    print(rewards)
     return normalize(rewards)
