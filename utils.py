@@ -36,8 +36,20 @@ def dist_to_monster(agent_loc, monster_loc, n_row=4, n_col=4):
     a_row, a_col = agent_loc // n_row, agent_loc % n_col
     m_row, m_col = monster_loc // n_row, monster_loc % n_col
     dist = np.abs(a_row - m_row) + np.abs(a_col - m_col)  # L1 dist
-    dist = dist/(n_row-1 + n_col -1)
-    return np.array([1.0 - dist])
+    # dist = dist/(n_row-1 + n_col -1)
+    return np.array([dist])
+
+
+def dist_to_hole(agent_loc, n_row=4, n_col=4):
+    hole_locations = [5, 7, 11, 12]
+    min_dist = 0.0
+    for hole_loc in hole_locations:
+        a_row, a_col = agent_loc // n_row, agent_loc % n_col
+        m_row, m_col = hole_loc // n_row, hole_loc % n_col
+        dist = np.abs(a_row - m_row) + np.abs(a_col - m_col)  # L1 dist
+        dist = dist/(n_row-1 + n_col -1)
+        min_dist = min(min_dist, dist)
+    return np.array([min_dist])
 
 
 def check_current_location(agent_loc):
@@ -55,6 +67,7 @@ if __name__=="__main__":
     # Create feature matrix
     all_agent_locs = np.arange(n_row*n_col).tolist()
     all_monster_locs = [2, 6, 8, 9, 10]
+    hole_locations = [5, 7, 11, 12]
 
     # Save locations of agent and monster --> to be used when computing features in MaxEnt
     saveObject(all_agent_locs, "agent_feats.pkl")
@@ -75,7 +88,7 @@ if __name__=="__main__":
             print(np.eye(len(all_monster_locs))[m_idx])
             feat_map[s_idx] = np.concatenate((np.eye(len(all_agent_locs))[a],
                                               np.eye(len(all_monster_locs))[m_idx],
-                                              check_current_location(a),
+                                              dist_to_hole(a),
                                               dist_to_monster(a, m),
                                               [dist_to_goal(a)]))
 

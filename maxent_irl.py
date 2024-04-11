@@ -1,4 +1,3 @@
-
 from value_iteration import value_iteration
 from neuralNet import *
 from utils import *
@@ -8,6 +7,7 @@ from model import *
 import shap
 import lime
 from matplotlib import pyplot as plt
+import statistics
 
 def normalize(vals):
     """
@@ -227,7 +227,7 @@ def get_lime_values(reward_net_new, feat_map):
 
     # Calculate the median for each key
     for key, values_list in median_values.items():
-        median_values[key] = median(values_list)
+        median_values[key] = statistics.median(values_list)
 
     
     # average_dict = {key: value / num_dicts for key, value in sums.items()}
