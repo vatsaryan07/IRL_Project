@@ -166,7 +166,7 @@ def convert_feat(feat_map):
         
         return np.concatenate([feat_1, feat_2, feat_3, feat_4, feat_5], axis=1)
 
-def get_shaply_values(reward_net_new, feat_map):
+def get_shapley_values(reward_net_new, feat_map):
     feat_map_torch = torch.Tensor(feat_map)
     explainer = shap.DeepExplainer(reward_net_new, feat_map_torch)
     torch.save(reward_net_new,'results/reward_network')
@@ -294,8 +294,8 @@ def deep_maxent_irl(feat_map, P_a, gamma, trajs, lr, n_iters):
                 layer.weight = nn.Parameter(torch.Tensor(reward_net[i][0]))
                 layer.bias = nn.Parameter(torch.Tensor(reward_net[i][1]).reshape(-1))
 
-    # Get shaply values using the pytorch network
-    get_shaply_values(reward_net_new, feat_map)
+    # Get shapley values using the pytorch network
+    get_shapley_values(reward_net_new, feat_map)
     
     # Get lime values
     get_lime_values(reward_net_new, feat_map)
