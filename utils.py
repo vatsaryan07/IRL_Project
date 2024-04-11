@@ -61,7 +61,7 @@ if __name__=="__main__":
     saveObject(all_monster_locs, "monster_feats.pkl")
 
     # Feature Engineering...
-    n_additional_feats = 2  # Include binary variable to indicate if the agent is in a hole, and the dist to monster
+    n_additional_feats = 3  # Include binary variable to indicate if the agent is in a hole, and the dist to monster
     n_total_feats = len(all_agent_locs) + len(all_monster_locs) + n_additional_feats
     feat_map = np.zeros((len(all_agent_locs)*len(all_monster_locs), n_total_feats))
 
@@ -76,7 +76,8 @@ if __name__=="__main__":
             feat_map[s_idx] = np.concatenate((np.eye(len(all_agent_locs))[a],
                                               np.eye(len(all_monster_locs))[m_idx],
                                               check_current_location(a),
-                                              dist_to_monster(a, m)))
+                                              dist_to_monster(a, m),
+                                              [dist_to_goal(a)]))
 
     with open("feat_map.npy", "wb") as f:
         np.save(f, feat_map)
