@@ -203,12 +203,58 @@ def get_lime_values(reward_net_new, feat_map):
 
     converted_feat_map = convert_feat(feat_map)
     lexp = lime.lime_tabular.LimeTabularExplainer(converted_feat_map,mode = 'regression',feature_names=  ['Agent Loc','Monster Loc','Check Hole','Dist to Monster','Dist to Goal'])
+    explainers = []
+
+    for i in converted_feat_map:
+        e = lexp.explain_instance(i,predict,num_features = 5)
+        explainers.append(e)
+        
+    dicts = [dict(i.as_map()[0]) for i in explainers]
+
+
+
+    median_values = {}
+
+    # Iterate through each dictionary in the list
+    for d in dicts:
+        # Iterate through each key-value pair in the dictionary
+        for key, value in d.items():
+            # If the key is not already in median_values, create a list
+            if key not in median_values:
+                median_values[key] = []
+            # Append the value to the list for that key
+            median_values[key].append(value)
+
+    # Calculate the median for each key
+    for key, values_list in median_values.items():
+        median_values[key] = median(values_list)
+
     
+    # average_dict = {key: value / num_dicts for key, value in sums.items()}
+        
+    map = {i:j for i,j in zip(lexp.feature_values,lexp.feature_names)}
+    
+    x = list(median_values.keys())
+    y = list(median_values.values())
+    x = [map[i] for i in x]
+    plt.clf()
+    plt.barh(x, y)
+
+    plt.xlabel("Feature")
+    plt.ylabel("Local explanation value")
+    plt.title("Local explanation of model")
+
+    for i, v in enumerate(y):
+        if v < 0:
+            plt.barh(x[i], v, color='red')
+        else:
+            plt.barh(x[i], v, color='green')
+
     exp = lexp.explain_instance(converted_feat_map[1], predict, num_features = 5)
     with open('results/explainer.pkl','wb') as f:
         pickle.dump(exp, f)
     
-    exp.as_pyplot_figure()
+    # exp.as_pyplot_figure()
     plt.savefig('results/lime.png',bbox_inches = 'tight')
 
 def deep_maxent_irl(feat_map, P_a, gamma, trajs, lr, n_iters):
