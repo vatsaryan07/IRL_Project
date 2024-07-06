@@ -255,7 +255,6 @@ class IRLEnv(FrozenLakeEnv):
         self.m = categorical_sample(self.initial_monster_location, self.np_random)
 
         self.P = {s: {a: [] for a in range(self.nA)} for s in range(self.nS)}
-
         def to_s(row, col):
             return row * ncol + col
 

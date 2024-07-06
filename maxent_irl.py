@@ -76,10 +76,15 @@ def compute_state_visit_freq(P_a, gamma, trajs, policy, deterministic=True):
                 mu[s,t+1]+=stsum
                 
             else:
+                sum = 0
+                for si in range(N_STATES):
+                    for ai in range(N_ACTIONS):
+                        sum += mu[si, t] * P_a[si, s, ai] * int(policy[si,ai])
+                mu[s, t+1] += sum
                 
                 ##### INSERT CODE HERE (Optional)
                 # Step 5 of algorithm 1 under a stochastic policy
-                pass
+                # pass
 
     # Summing Frequencies across time
     p = np.sum(mu, 1)
@@ -166,7 +171,7 @@ def convert_feat(feat_map):
         
         return np.concatenate([feat_1, feat_2, feat_3, feat_4, feat_5], axis=1)
 
-def get_shapley_values(reward_net_new, feat_map):
+def get_shapley_values(reward_net_new, feat_map,rounds):
     feat_map_torch = torch.Tensor(feat_map)
     explainer = shap.DeepExplainer(reward_net_new, feat_map_torch)
     torch.save(reward_net_new,'results/reward_network')
@@ -184,9 +189,12 @@ def get_shapley_values(reward_net_new, feat_map):
     feat_5 = shap_vals[:,23].reshape(-1,1)
 
     final_shaps = np.concatenate([feat_1,feat_2,feat_3,feat_4,feat_5],axis = 1)
-    
-    shap.plots.violin(final_shaps,feature_names=['Agent Loc','Monster Loc','Check Hole','Dist to Monster','Dist to Goal'],plot_type='violin',color_bar = True,show = False)
-    plt.savefig('results/shapley.png',bbox_inches='tight')
+    # print(final_shaps)
+    # shap.plots.close()
+    fig,ax = plt.subplots()
+    shap.plots.violin(final_shaps,feature_names=['Agent Loc','Monster Loc','Dist to Hole','Dist to Monster','Dist to Goal'],plot_type='violin',color_bar = True,show = False)
+    plt.savefig('results/shapley_2_'+str(rounds)+'_.png',bbox_inches='tight')
+    plt.close(fig)
 
 def get_lime_values(reward_net_new, feat_map):
     def predict(feats):
@@ -257,7 +265,7 @@ def get_lime_values(reward_net_new, feat_map):
     # exp.as_pyplot_figure()
     plt.savefig('results/lime.png',bbox_inches = 'tight')
 
-def deep_maxent_irl(feat_map, P_a, gamma, trajs, lr, n_iters):
+def deep_maxent_irl(feat_map, P_a, gamma, trajs, lr, n_iters,deterministic=True,rounds = 0):
     """
         Maximum Entropy Deep Inverse Reinforcement Learning (Deep Maxent IRL)
         Please refer: https://arxiv.org/pdf/1507.04888.pdf
@@ -294,6 +302,7 @@ def deep_maxent_irl(feat_map, P_a, gamma, trajs, lr, n_iters):
     for t in range(T):
         for tau in trajs:
             # Get current state index
+            # print(tau)
             agent_feature = tau[t][1][0]  # Get agent location
             monster_feature = tau[t][1][1]  # Get monster location
 
@@ -306,8 +315,8 @@ def deep_maxent_irl(feat_map, P_a, gamma, trajs, lr, n_iters):
     mu_exp = mu_exp / len(trajs)
 
     # Create neural networks 
-    reward_net = create_neural_net([10],feat_dim,1)
-    reward_net_new = RewardNet(feat_dim)
+    reward_net = create_neural_net([25,25],feat_dim,1)
+    reward_net_new = RewardNet(feat_dim,25,25)
     
     for i in range(n_iters):
         print('iteration: {}/{}'.format(i, n_iters))
@@ -320,7 +329,7 @@ def deep_maxent_irl(feat_map, P_a, gamma, trajs, lr, n_iters):
 
         # 3) Compute state visitation frequencies
         stvisit = compute_state_visit_freq(P_a,gamma,trajs,pol,deterministic=True)
-
+        
         # 4) Compute Final layer Gradient (HINT: Eq. 11 of Wulfmeier et al.)
         final_grad = (stvisit - mu_exp)
 
@@ -341,7 +350,7 @@ def deep_maxent_irl(feat_map, P_a, gamma, trajs, lr, n_iters):
                 layer.bias = nn.Parameter(torch.Tensor(reward_net[i][1]).reshape(-1))
 
     # Get shapley values using the pytorch network
-    get_shapley_values(reward_net_new, feat_map)
+    get_shapley_values(reward_net_new, feat_map,rounds)
     
     # Get lime values
     get_lime_values(reward_net_new, feat_map)
@@ -349,4 +358,4 @@ def deep_maxent_irl(feat_map, P_a, gamma, trajs, lr, n_iters):
     with open('results/feat_map.pkl', 'wb') as f:
         pickle.dump(feat_map, f)
 
-    return normalize(rewards)
+    return rewards

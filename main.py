@@ -19,7 +19,7 @@ def load_demo(folder, n_trajs):
         each trajectory contains [[action, state_list], ..., []]
     """
     trajs = []
-    T = 10  # Fix episode length
+    T = 15                                                                # Fix episode length
 
     for i in range(n_trajs):
         path = folder + '/trajectory_%d.pkl' % i

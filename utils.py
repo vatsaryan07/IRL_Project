@@ -42,7 +42,7 @@ def dist_to_monster(agent_loc, monster_loc, n_row=4, n_col=4):
 
 def dist_to_hole(agent_loc, n_row=4, n_col=4):
     hole_locations = [5, 7, 11, 12]
-    min_dist = 0.0
+    min_dist = np.inf
     for hole_loc in hole_locations:
         a_row, a_col = agent_loc // n_row, agent_loc % n_col
         m_row, m_col = hole_loc // n_row, hole_loc % n_col
@@ -82,16 +82,19 @@ if __name__=="__main__":
     for a_idx, a in enumerate(all_agent_locs):
         for m_idx, m in enumerate(all_monster_locs):
             s_idx = a_idx * len(all_monster_locs) + m_idx
-            print("Agent Locations")
-            print(np.eye(len(all_agent_locs))[a])
-            print("Monster Locations")
-            print(np.eye(len(all_monster_locs))[m_idx])
+            # print("Agent Locations")
+            # print(np.eye(len(all_agent_locs))[a])
+            # print("Monster Locations")
+            # print(np.eye(len(all_monster_locs))[m_idx])
+            # print("Distance to hole")
+            # print(dist_to_hole(a))
             feat_map[s_idx] = np.concatenate((np.eye(len(all_agent_locs))[a],
                                               np.eye(len(all_monster_locs))[m_idx],
                                               dist_to_hole(a),
                                               dist_to_monster(a, m),
                                               [dist_to_goal(a)]))
 
+    # print(feat_map.shape)
     with open("feat_map.npy", "wb") as f:
         np.save(f, feat_map)
 

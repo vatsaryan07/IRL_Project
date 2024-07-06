@@ -1,6 +1,7 @@
 import os
 import numpy as np
-from env import IRLEnv
+import env as det
+import env_copy as stoch
 from utils import load_VI_policy, loadObject
 import argparse
 
@@ -12,20 +13,29 @@ trans_matrix = np.load("trans_matrix.npy")
 def get_episode_returns(env_version, policy, n_episodes, deterministic=True, max_ep_len=10, render_human=False,
                         seed=789):
     np.random.seed(seed)
-    env = IRLEnv(
-        render_mode="human" if render_human else None,
-        seed=seed + 765,
-        version=env_version,
-    )
+    if deterministic == True:
+        env = det.IRLEnv(
+            render_mode="human" if render_human else None,
+            seed=seed + 765,
+            version=env_version,
+        )
+    else:
+        env = stoch.IRLEnv(
+            render_mode="human" if render_human else None,
+            seed=seed + 765,
+            version=env_version,
+        )
+    
     ep_returns = []
 
     # Main loop
+    
+    wins = 0
     for i in range(n_episodes):
 
         # collect data
         obs, info = env.reset()
         agent_loc, monster_loc = obs
-
         total_reward = 0
         for t in range(max_ep_len):
             ai = agent_feats.index(agent_loc)
@@ -44,6 +54,8 @@ def get_episode_returns(env_version, policy, n_episodes, deterministic=True, max
             if term or trunc or rew==50:
                 # The next state is a terminal state (goal / hole). Therefore, we should
                 # record the outcome of the game in winLossRecord for game i.
+                if rew == 50:
+                    wins += 1
                 break
             else:
                 # Simply step to the next state
@@ -51,23 +63,29 @@ def get_episode_returns(env_version, policy, n_episodes, deterministic=True, max
 
         ep_returns.append(total_reward)
 
-    return ep_returns
+    return ep_returns,wins
 
+def main(deterministic = True,fname = 'trained_policy_deep_stochastic_best.npy',render = 0,return_wins = False):
+    
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('--fname', type=str, default="trained_policy_deep.npy", help='Path to trained policy file')
+    # parser.add_argument('--render', type=int, default=0, help='set to 1 to visualize trained policy')
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--fname', type=str, default="trained_policy_std.npy", help='Path to trained policy file')
-    parser.add_argument('--render', type=int, default=0, help='set to 1 to visualize trained policy')
-
-    args = parser.parse_args()
-    fname = args.fname
-    render_human = bool(args.render)
+    render_human = bool(render)
     assert os.path.exists(fname), f"Policy file '{fname}' does not exist"
     env_version = 3  # DO NOT CHANGE
-    n_episodes = 1000
+    if render_human == True:
+        n_episodes = 5
+    else:
+        n_episodes = 1000
 
     policy = load_VI_policy(fname)
-    ep_returns = get_episode_returns(env_version, policy, deterministic=True, n_episodes=n_episodes, render_human=render_human)
-
+    ep_returns,wins = get_episode_returns(env_version, policy, deterministic=deterministic, n_episodes=n_episodes, render_human=render_human,max_ep_len=15)
+    if return_wins:
+        return wins/n_episodes
     print('No Episodes:', n_episodes)
     print('Mean Return:', np.mean(ep_returns))
+    print('Wins:', wins)
+    
+if __name__ == '__main__':
+    main(render = 1,deterministic=False)

@@ -36,7 +36,6 @@ def value_iteration(P_a, rewards, gamma, error=0.1, deterministic=True):
     # estimate values
     while True:
         values_tmp = values.copy()
-
         for s in range(N_STATES):
             values[s] = max([rewards[s] + gamma * values_tmp[trans[s, a]] for a in range(N_ACTIONS)])
 
@@ -52,15 +51,20 @@ def value_iteration(P_a, rewards, gamma, error=0.1, deterministic=True):
             policy[s] = np.argmax([sum([P_a[s, s1, a] * (rewards[s] + gamma * values[s1])
                                         for s1 in range(N_STATES)])
                                         for a in range(N_ACTIONS)])
+            
 
         return values, policy
     else:
         # generate stochastic policy
         policy = np.zeros([N_STATES, N_ACTIONS])
         for s in range(N_STATES):
-            v_s = np.array([sum([P_a[s, s1, a] * (rewards[s] + gamma * values[s1]) for s1 in range(N_STATES)]) for a in
-                            range(N_ACTIONS)])
-            policy[s, :] = np.transpose(v_s / np.sum(v_s))
+            policy[s,:] = np.array([sum([P_a[s, s1, a] * (rewards[s] + gamma * values[s1]) 
+                                 for s1 in range(N_STATES)]) for a in range(N_ACTIONS)]).reshape(-1,)
+            # print(v_s)
+            
+        
+        policy -= policy.max(axis=1).reshape((N_STATES, 1))  # For numerical stability.
+        policy = np.exp(policy)/np.exp(policy).sum(axis=1).reshape((N_STATES, 1))
         return values, policy
 
 # def logsumexp(_arr, axis=-1):
