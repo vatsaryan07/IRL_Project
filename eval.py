@@ -42,7 +42,7 @@ def get_episode_returns(env_version, policy, n_episodes, deterministic=True, max
             mi = monster_feats.index(monster_loc)
 
             si = ai * len(monster_feats) + mi
-            act = int(policy[si])
+            act = int(np.argmax(policy[si]))
             # print(act)
 
             obs_next, rew, term, trunc, info = env.step(act)
@@ -65,7 +65,7 @@ def get_episode_returns(env_version, policy, n_episodes, deterministic=True, max
 
     return ep_returns,wins
 
-def main(deterministic = True,fname = 'trained_policy_deep_stochastic_best.npy',render = 0,return_wins = False):
+def main(deterministic = True,fname = 'trained_policy_deep.npy',render = 0,return_wins = False):
     
     # parser = argparse.ArgumentParser()
     # parser.add_argument('--fname', type=str, default="trained_policy_deep.npy", help='Path to trained policy file')
