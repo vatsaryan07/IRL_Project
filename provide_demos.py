@@ -104,4 +104,4 @@ def main(itraj = 0,num_demos = 15,deterministic = True):
                 break
             
 if __name__ == "__main__":
-    main(itraj = 0,num_demos = 15,deterministic=True)
+    main(itraj = 0,num_demos = 15,deterministic=False)

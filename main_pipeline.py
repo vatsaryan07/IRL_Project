@@ -33,26 +33,19 @@ def load_demo(folder, n_trajs,corrective = 'N'):
             if os.path.exists(path):
                 trajectory = pickle.load(open(path, 'rb'))
                 trajs.append(trajectory)
-        # print(trajs)
-        corrective_set = trajs[-5:]
+
+        corrective_set = trajs[-15:]
         
-        # print(corrective_set)
-        # sampling_set = trajs[:-5]
-        # for i in range(10):
-        sampled_set = np.random.choice(np.arange(len(trajs) - 5),size = 10,replace=False)
-        for i in sampled_set:
-            # print(trajs[i])
-            corrective_set += [trajs[i]]
-        
-        # print(corrective_set)
-        
+        # sampled_set = np.random.choice(np.arange(len(trajs) - 5),size = 10,replace=False)
+        # for i in sampled_set:
+        #     corrective_set += [trajs[i]]
         
         return corrective_set
         
         
     else:
         trajs = []
-        T = 15                                                                # Fix episode length
+        T = 15    
 
         for i in range(n_trajs):
             path = folder + '/trajectory_%d.pkl' % i
@@ -87,10 +80,7 @@ if __name__ == "__main__":
             # Set hyperparameters for Deep MaxEnt
             gamma = 0.99
             lr = 1e-2
-            if corrective_feedback=='Y':
-                n_iters = 5
-            else:
-                n_iters = 5
+            n_iters = 10
             rewards = deep_maxent_irl(feat_map, P_a, gamma, trajs, lr, n_iters,deterministic = is_deterministic,rounds = rounds)
             rewards = rewards.T.squeeze()  # Must be of shape (N,) where N is the number of states
 
@@ -105,19 +95,19 @@ if __name__ == "__main__":
             rewards = maxent_irl(feat_map, P_a, gamma, trajs, lr, n_iters)
 
         # compute optimal policy w.r.t. the learned rewards
-        values, trained_policy = value_iteration(P_a, rewards, gamma, error=0.1, deterministic=True)
+        values, trained_policy = value_iteration(P_a, rewards, gamma, error=0.1, deterministic=is_deterministic)
 
-        env_key = "AIzaSyDoq3vTbnObsbeh_6zJh1R3RloVP78rxxE"
-        genai.configure(api_key=env_key)
-        
-        model = genai.GenerativeModel('gemini-pro-vision')
+        # Access your API key as an environment variable.
+        genai.configure(api_key=os.environ['API_KEY'])
+        # Choose a model that's appropriate for your use case.
+        model = genai.GenerativeModel('gemini-1.5-flash')
 
         pict = PIL.Image.open('results/shapley_2_'+str(rounds)+'_.png')
         prompt = """We are training an inverse reinforcement learning model using Deep Max Entropy algorithm on the Wumpus World environment. The model uses small feedforward neural networks to learn the reward function from the given demonstrations. The training manual of the game given below has information about the environment.
 
         * TRAINING MANUAL * 
 
-        The game starts with the player at location [0,0] of the frozen lake grid world with the goal (treasure) located at far extent of the world e.g. [3,3] for the 4x4 environment.The player makes moves until they reach the goal or fall in a hole or gets eaten by the monster. Worlds will always have a path to the goal.
+        The game starts with the player at location [0,0] of the frozen lake grid world with the goal (treasure) located at far extent of the world e.g. [3,3] for the 4x4 environment.The player makes moves until they reach the goal or fall in a hole or gets eaten by the monster. There is always a path to the goal.
 
         Holes in the ice are distributed in set locations of [(1,1), (1,3), (2,3), (3,0)]. The monster starts at location (2,2). It chooses uniformly randomly whether it wants to proceed in an upward direction [(2,2), 1,2), (0,2)] or towards the left [(2,2), (2,1), (2,0]. 
 
@@ -154,18 +144,24 @@ if __name__ == "__main__":
         Additional features cannot be provided and you should not recommend providing more features. 
 
         Can you explain these values?
-        What features the robot is using to learn the reward function? Your response will help the demonstrator in understanding the robot learning better. Be careful about the x-axis in the plot. Values towards the left of 0 line are negative and towards the right are positive. How would you suggest these values should be modified to achieve the best reward function?
-        Be critical in your evaluation of how the demonstrator can improve the agent.
-        A performance of more than 0.8 winrate is ideal and further improvement might not be possible if it is not deterministic. 
-        Don't give more recommendations if it achieves desired winrate."""
+        What features the robot is using to learn the reward function? Your response will help the demonstrator in understanding the robot learning better. How would you suggest these values should be modified to achieve the best reward function?
+        Be critical in your evaluation of how the demonstrator can improve the agent. Remember positive distance value encourages the agent to increase the distance and negative distance value encourages it to decrease the distance."""
+
+        feature_shaps = pickle.load(open('/Users/rynaa/IRL_Project/new_results/shapley_values.pkl', 'rb'))
+
+        shap_values_prompt = ''
+        feature_names=['Agent Loc','Monster Loc','Dist to Hole','Dist to Monster','Dist to Goal']
+        for i in range(len(feature_names)):
+            shap_values_prompt += f'Feature - {feature_names[i]} has mean SHAP value of {feature_shaps[:,i].mean()} and standard deviation of {feature_shaps[:,i].std()}\n'
         
+        print("------------------------------------------------")
+        print(shap_values_prompt)
         print("------------------------------------------------")
         print("Results")
         np.save(f'trained_policy_{MAX_ENT_VERSION}', trained_policy)
         np.save(f'learned_reward_{MAX_ENT_VERSION}', rewards)
-        wins = eval.main(deterministic=is_deterministic,return_wins=True)
-        print("Win Rate : ",wins)
-        response = model.generate_content([prompt + "\n Winrate : "+str(wins),pict],stream= True)
+        eval.main(deterministic=is_deterministic,return_wins=False)
+        response = model.generate_content(prompt+shap_values_prompt)
         response.resolve()
         eval.main(deterministic=is_deterministic,render=1)
         
